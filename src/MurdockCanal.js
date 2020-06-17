@@ -5,7 +5,14 @@ const request = require("request");
 const path = require("path");
 
 const rootDir = path.join(__dirname + "/../");
-const cached = JSON.parse(fs.readFileSync(rootDir + "/data/cache.json", "utf8"));
+let cached = null;
+try {
+	cached = JSON.parse(fs.readFileSync("/data/cache.json", "utf8"));
+}
+catch (err) {
+	cached = {};
+}
+
 let photos = [];
 
 fs.readdir(rootDir + "/public/photos/", (err, files) => photos = files);
@@ -68,7 +75,7 @@ function ParseListings(html) {
 }
 
 function LoadTrail() {
-    return JSON.parse(fs.readFileSync(rootDir + "/data/trail.json", "utf8"));
+    return JSON.parse(fs.readFileSync(rootDir + "/trail.json", "utf8"));
 }
 
 function CalculateDistance(lat1, lon1, lat2, lon2) {
@@ -131,9 +138,9 @@ function DownloadImage(uri, filename) {
 };
 
 module.exports = {
-    GetListings: function() {
+    GetListings: function(overrideCache) {
         return new Promise((resolve, reject) => {
-            if (Date.now() - JSON.parse(fs.readFileSync(rootDir + "/config.json", "utf8")).last_pulled > 24 * 60 * 60 * 1000) {
+            if (overrideCache || (Date.now() - JSON.parse(fs.readFileSync(rootDir + "/config.json", "utf8")).last_pulled > 24 * 60 * 60 * 1000)) {
                 GetListings(250000, 450000).then(properties => {
                     let promises = [];
                     let trail = LoadTrail();
@@ -145,22 +152,22 @@ module.exports = {
                     }
 
                     Promise.all(promises).then(result => {
-                        fs.writeFile(rootDir + "/data/cache.json", JSON.stringify(cached), () => { });
-                        fs.writeFile(rootDir + "/data/properties.json", JSON.stringify(properties), () => { });
+                        fs.writeFile("/data/cache.json", JSON.stringify(cached), () => { });
+                        fs.writeFile("/data/properties.json", JSON.stringify(properties), () => { });
                         fs.writeFile(rootDir + "/config.json", JSON.stringify({ "last_pulled": Date.now() }), () => { });
                         resolve(JSON.stringify(properties));
                     });
                 });
             }
             else {
-                resolve(fs.readFileSync(rootDir + "/data/properties.json", "utf8"));
+                resolve(fs.readFileSync("/data/properties.json", "utf8"));
             }
         });
     },
 
     GetTrail: function(){
         return new Promise((resolve, reject)=>{
-            resolve(fs.readFileSync(rootDir + "/data/trail.json", "utf8"));
-        });   
-    } 
+            resolve(fs.readFileSync(rootDir + "/trail.json", "utf8"));
+        });
+    }
 }
